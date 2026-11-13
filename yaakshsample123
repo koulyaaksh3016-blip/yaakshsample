@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quick UPI Pay | yaakshuu@fam</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lightweight QR Code Generator -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4">
+
+  <!-- Main Payment Card -->
+  <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+    
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-center">
+      <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm text-xl font-bold mb-2">
+        ₹
+      </div>
+      <h1 class="text-xl font-bold tracking-tight">Direct UPI Checkout</h1>
+      <p class="text-indigo-100 text-xs mt-1 flex items-center justify-center gap-1.5">
+        <span>Paying to:</span>
+        <span id="upi-badge" class="font-mono bg-black/25 px-2 py-0.5 rounded text-white">yaakshuu@fam</span>
+      </p>
+    </div>
+
+    <!-- Step 1: Enter Amount & Note -->
+    <div id="step-amount" class="p-6 space-y-5">
+      <div>
+        <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Enter Amount (INR)</label>
+        <div class="relative">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-semibold text-slate-400">₹</span>
+          <input 
+            type="number" 
+            id="amount-input" 
+            value="100" 
+            min="1" 
+            max="100000"
+            placeholder="0"
+            class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 pl-10 pr-4 text-2xl font-bold text-white outline-none transition"
+          />
+        </div>
+        <!-- Quick Preset Chips -->
+        <div class="grid grid-cols-4 gap-2 mt-3">
+          <button type="button" onclick="setAmount(50)" class="preset-btn py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition">₹50</button>
+          <button type="button" onclick="setAmount(100)" class="preset-btn py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition">₹100</button>
+          <button type="button" onclick="setAmount(250)" class="preset-btn py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition">₹250</button>
+          <button type="button" onclick="setAmount(500)" class="preset-btn py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition">₹500</button>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">Payment Note (Optional)</label>
+        <input 
+          type="text" 
+          id="note-input" 
+          placeholder="e.g., Order #101 or Service Fee"
+          maxlength="40"
+          class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-white outline-none transition"
+        />
+      </div>
+
+      <button 
+        onclick="generatePayment()" 
+        class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-indigo-600/25 transition cursor-pointer"
+      >
+        Proceed to Pay
+      </button>
+    </div>
+
+    <!-- Step 2: QR Code & UPI App Intent -->
+    <div id="step-pay" class="hidden p-6 space-y-5 text-center">
+      <div class="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-3">
+        <span>Order ID: <strong id="display-order-id" class="text-slate-200 font-mono"></strong></span>
+        <button onclick="resetToAmount()" class="text-indigo-400 hover:underline">Change Amount</button>
+      </div>
+
+      <div>
+        <p class="text-xs text-slate-400">Amount Payable</p>
+        <p id="display-amount" class="text-3xl font-bold text-white mt-0.5">₹100</p>
+      </div>
+
+      <!-- Dynamic QR Container -->
+      <div class="bg-white p-3.5 rounded-2xl inline-block mx-auto shadow-inner">
+        <div id="qrcode"></div>
+      </div>
+      <p class="text-xs text-slate-400">Scan with FamApp, GPay, PhonePe, or Paytm</p>
+
+      <!-- Mobile Deep Link Button -->
+      <a 
+        id="upi-deep-link" 
+        href="#" 
+        class="block w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl shadow-lg shadow-emerald-600/20 transition"
+      >
+        Open UPI App on Mobile
+      </a>
+
+      <!-- Copy UPI ID Helper -->
+      <div class="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs">
+        <span class="font-mono text-slate-300">yaakshuu@fam</span>
+        <button onclick="copyUPI()" id="copy-btn" class="text-indigo-400 font-medium hover:text-indigo-300">Copy ID</button>
+      </div>
+
+      <!-- Verification Section (Demo UTR Check) -->
+      <div class="pt-3 border-t border-slate-800 text-left space-y-2.5">
+        <label class="block text-xs font-medium text-slate-400">Already paid? Enter 12-digit UPI Ref / UTR No.</label>
+        <div class="flex gap-2">
+          <input 
+            type="text" 
+            id="utr-input" 
+            placeholder="e.g., 431892019283" 
+            maxlength="12"
+            class="flex-1 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3.5 py-2 text-sm font-mono text-white outline-none"
+          />
+          <button 
+            onclick="verifyTransaction()" 
+            id="verify-btn"
+            class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-xs font-semibold px-4 py-2 rounded-xl transition cursor-pointer"
+          >
+            Verify
+          </button>
+        </div>
+        <p id="verify-error" class="hidden text-xs text-rose-400"></p>
+      </div>
+    </div>
+
+    <!-- Step 3: Payment Verified Receipt -->
+    <div id="step-verified" class="hidden p-6 text-center space-y-4">
+      <div class="w-14 h-14 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto text-2xl">
+        ✓
+      </div>
+      <div>
+        <h2 class="text-lg font-bold text-white">Payment Submitted!</h2>
+        <p class="text-xs text-slate-400 mt-1">Transaction reference recorded for verification.</p>
+      </div>
+
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-left text-xs space-y-2">
+        <div class="flex justify-between">
+          <span class="text-slate-400">Paid To</span>
+          <span class="font-mono text-slate-200">yaakshuu@fam</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Amount</span>
+          <span id="receipt-amount" class="font-semibold text-emerald-400"></span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Order ID</span>
+          <span id="receipt-order" class="font-mono text-slate-200"></span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">UPI Ref / UTR</span>
+          <span id="receipt-utr" class="font-mono text-slate-200"></span>
+        </div>
+      </div>
+
+      <button 
+        onclick="resetToAmount()" 
+        class="w-full bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-3 rounded-xl transition cursor-pointer"
+      >
+        Make Another Payment
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    const PAYEE_UPI = "yaakshuu@fam";
+    const PAYEE_NAME = "Yaaksh";
+    let currentOrderId = "";
+    let currentAmount = 100;
+
+    function setAmount(val) {
+      document.getElementById("amount-input").value = val;
+    }
+
+    function generatePayment() {
+      const amt = parseFloat(document.getElementById("amount-input").value);
+      const note = document.getElementById("note-input").value.trim() || "Website Payment";
+
+      if (!amt || amt <= 0) {
+        alert("Please enter a valid amount greater than ₹0.");
+        return;
+      }
+
+      currentAmount = amt.toFixed(2);
+      currentOrderId = "ORD" + Math.floor(100000 + Math.random() * 900000);
+
+      // Build standard NPCI UPI Intent URI
+      const upiUrl = `upi://pay?pa=${encodeURIComponent(PAYEE_UPI)}&pn=${encodeURIComponent(PAYEE_NAME)}&am=${currentAmount}&cu=INR&tn=${encodeURIComponent(note + " (" + currentOrderId + ")")}`;
+
+      // Update UI
+      document.getElementById("display-order-id").innerText = currentOrderId;
+      document.getElementById("display-amount").innerText = `₹${amt}`;
+      document.getElementById("upi-deep-link").href = upiUrl;
+
+      // Render fresh QR Code
+      const qrContainer = document.getElementById("qrcode");
+      qrContainer.innerHTML = "";
+      new QRCode(qrContainer, {
+        text: upiUrl,
+        width: 180,
+        height: 180,
+        colorDark: "#0f172a",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      // Switch view
+      document.getElementById("step-amount").classList.add("hidden");
+      document.getElementById("step-pay").classList.remove("hidden");
+    }
+
+    function copyUPI() {
+      navigator.clipboard.writeText(PAYEE_UPI);
+      const btn = document.getElementById("copy-btn");
+      btn.innerText = "Copied!";
+      setTimeout(() => btn.innerText = "Copy ID", 2000);
+    }
+
+    function verifyTransaction() {
+      const utr = document.getElementById("utr-input").value.trim();
+      const errEl = document.getElementById("verify-error");
+      const btn = document.getElementById("verify-btn");
+
+      // Standard UPI UTR numbers are 12 numeric digits
+      if (!/^\d{12}$/.test(utr)) {
+        errEl.innerText = "Please enter a valid 12-digit numeric UPI Reference / UTR number.";
+        errEl.classList.remove("hidden");
+        return;
+      }
+
+      errEl.classList.add("hidden");
+      btn.innerText = "Checking...";
+      btn.disabled = true;
+
+      // Simulated verification check (Replace with backend webhook/API poll in production)
+      setTimeout(() => {
+        btn.innerText = "Verify";
+        btn.disabled = false;
+
+        document.getElementById("receipt-amount").innerText = `₹${currentAmount}`;
+        document.getElementById("receipt-order").innerText = currentOrderId;
+        document.getElementById("receipt-utr").innerText = utr;
+
+        document.getElementById("step-pay").classList.add("hidden");
+        document.getElementById("step-verified").classList.remove("hidden");
+      }, 900);
+    }
+
+    function resetToAmount() {
+      document.getElementById("utr-input").value = "";
+      document.getElementById("verify-error").classList.add("hidden");
+      document.getElementById("step-pay").classList.add("hidden");
+      document.getElementById("step-verified").classList.add("hidden");
+      document.getElementById("step-amount").classList.remove("hidden");
+    }
+  </script>
+</body>
+</html>
